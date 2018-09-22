@@ -1,15 +1,18 @@
-extern crate hyper;
+extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
+extern crate tar;
 
 #[macro_use]
 extern crate serde_derive;
 
-use hyper::rt::{self, Future, Stream};
-use hyper::Client;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::copy;
+use std::io::Error;
+// use std::io::{self, Write};
+// use std::path::Path;
+// use tar::Archive;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,38 +31,40 @@ struct PackageLock {
     dependencies: HashMap<String, PackageLockDependency>,
 }
 
-fn readlock() -> std::io::Result<()> {
+fn readlock() -> std::io::Result<PackageLock> {
     let mut file = File::open("fixtures/package-lock.json")?;
     let lock: PackageLock = serde_json::from_reader(&mut file)?;
-    println!("version {}", lock.lockfile_version);
-    let dependency = lock.dependencies.get("ansi-styles").unwrap();
-    println!(
-        "tarball {}@{}: {}",
-        "ansi-styles", dependency.version, dependency.resolved
-    );
+    println!("package-lock.json version: {}", lock.lockfile_version);
+    Ok(lock)
+}
+
+fn download_file(url: &String) -> Result<(), Error> {
+    let mut response = reqwest::get(url).expect("http failed");
+
+    let mut dest = {
+        let fname = response
+            .url()
+            .path_segments()
+            .and_then(|segments| segments.last())
+            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .unwrap_or("tmp.bin");
+
+        println!("file to download: '{}'", fname);
+        let fname = "tarball.tgz";
+        println!("will be located under: '{:?}'", fname);
+        File::create(fname)?
+    };
+    copy(&mut response, &mut dest)?;
     Ok(())
 }
 
-fn testhttp() -> impl Future<Item = (), Error = ()> {
-    let uri = "http://httpbin.org/ip".parse().unwrap();
-    let client = Client::new();
-
-    client
-        .get(uri)
-        .and_then(|res| {
-            res.into_body().for_each(|chunk| {
-                io::stdout()
-                    .write_all(&chunk)
-                    .map_err(|e| panic!("example expects stdout is open, error={}", e))
-            })
-        })
-        .map_err(|err| {
-            println!("Error: {}", err);
-        })
-}
-
 fn main() -> std::io::Result<()> {
-    readlock()?;
-    rt::run(testhttp());
+    let lock = readlock()?;
+    let dependency = lock.dependencies.get("ansi-styles").unwrap();
+    println!(
+        "tarball: {}@{}: {}",
+        "ansi-styles", dependency.version, dependency.resolved
+    );
+    download_file(&dependency.resolved)?;
     Ok(())
 }
