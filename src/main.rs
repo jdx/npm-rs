@@ -38,23 +38,16 @@ fn readlock() -> std::io::Result<PackageLock> {
     Ok(lock)
 }
 
-fn download_file(url: &String) -> Result<(), Error> {
+fn download_file(url: &String, to: &String) -> Result<(), Error> {
+    println!("downloading {} to {}", url, to);
     let mut response = reqwest::get(url).expect("http failed");
-
-    let mut dest = {
-        let fname = response
-            .url()
-            .path_segments()
-            .and_then(|segments| segments.last())
-            .and_then(|name| if name.is_empty() { None } else { Some(name) })
-            .unwrap_or("tmp.bin");
-
-        println!("file to download: '{}'", fname);
-        let fname = "tarball.tgz";
-        println!("will be located under: '{:?}'", fname);
-        File::create(fname)?
-    };
-    copy(&mut response, &mut dest)?;
+    response
+        .url()
+        .path_segments()
+        .and_then(|segments| segments.last())
+        .and_then(|name| if name.is_empty() { None } else { Some(name) })
+        .expect("download failed");
+    copy(&mut response, &mut File::create(to)?)?;
     Ok(())
 }
 
@@ -65,6 +58,6 @@ fn main() -> std::io::Result<()> {
         "tarball: {}@{}: {}",
         "ansi-styles", dependency.version, dependency.resolved
     );
-    download_file(&dependency.resolved)?;
+    download_file(&dependency.resolved, &String::from("tarball.tgz"))?;
     Ok(())
 }
