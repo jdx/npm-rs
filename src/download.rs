@@ -1,7 +1,3 @@
-extern crate digest;
-extern crate reqwest;
-extern crate sha1;
-extern crate tar;
 extern crate xx;
 
 use package_lock::PackageLock;
