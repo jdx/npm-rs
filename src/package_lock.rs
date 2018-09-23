@@ -6,6 +6,7 @@ extern crate xx;
 use self::flate2::read::GzDecoder;
 use self::tar::Archive;
 use self::xx::hash;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::fs;
@@ -79,33 +80,36 @@ impl PackageLock {
 
 fn install<P: AsRef<Path>>(root: P, dependencies: &HashMap<String, PackageLockDependency>) {
     let root = root.as_ref();
-    for (_, dep) in dependencies {
-        let name = dep.name.as_ref().unwrap();
-        match dep.dependencies {
-            Some(ref deps) => {
-                let mut p = root.join("node_modules");
-                p.push(name);
-                install(p, deps);
+    dependencies
+        .par_iter()
+        .for_each(|dep| {
+            let dep = dep.1;
+            let name = dep.name.as_ref().unwrap();
+            match dep.dependencies {
+                Some(ref deps) => {
+                    let mut p = root.join("node_modules");
+                    p.push(name);
+                    install(p, deps);
+                }
+                None => (),
             }
-            None => (),
-        }
-        let file = dep.cache_path();
-        match verify(&file, &dep.integrity, false) {
-            Ok(verified) => {
-                if !verified {
-                    println!("hash fail: {:?}", file);
+            let file = dep.cache_path();
+            match verify(&file, &dep.integrity, false) {
+                Ok(verified) => {
+                    if !verified {
+                        println!("hash fail: {:?}", file);
+                        xx::http::download(&dep.resolved, &file).unwrap();
+                    }
+                }
+                Err(_err) => {
+                    println!("file not found: {:?}", file);
                     xx::http::download(&dep.resolved, &file).unwrap();
                 }
             }
-            Err(_err) => {
-                println!("file not found: {:?}", file);
-                xx::http::download(&dep.resolved, &file).unwrap();
-            }
-        }
-        verify(&file, &dep.integrity, true).unwrap();
-        let extract_path = root.join("node_modules").join(dep.name.clone().unwrap());
-        extract(&file, extract_path);
-    }
+            verify(&file, &dep.integrity, true).unwrap();
+            let extract_path = root.join("node_modules").join(dep.name.clone().unwrap());
+            extract(&file, extract_path);
+        })
 }
 
 fn verify(path: &Path, integrity: &String, must: bool) -> Result<bool, io::Error> {
