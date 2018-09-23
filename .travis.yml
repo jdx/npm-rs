@@ -1,2 +1,14 @@
 language: rust
 cache: cargo
+matrix:
+  include:
+    - rust: stable
+    - rust: nightly
+    - rust: beta
+      before_script:
+        - rustup component add clippy-preview
+      script:
+        - cargo clippy -- -D warnings
+        - cargo test
+  allow_failures:
+    - rust: nightly

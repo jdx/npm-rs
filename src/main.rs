@@ -16,5 +16,5 @@ use package_lock::{readlock};
 
 fn main() {
     let lock = readlock();
-    download_tarballs(lock);
+    download_tarballs(&lock);
 }

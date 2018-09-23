@@ -8,12 +8,12 @@ use package_lock::PackageLock;
 use std::io;
 use std::path::Path;
 
-pub fn download_tarballs(lock: PackageLock) {
-    for (name, dep) in lock.dependencies.iter() {
+pub fn download_tarballs(lock: &PackageLock) {
+    for (name, dep) in &lock.dependencies {
         let file = Path::new("tmp")
             .join(name)
             .join(format!("{}-{}.tgz", name, dep.version));
-        let s: Vec<&str> = dep.integrity.splitn(2, "-").collect();
+        let s: Vec<&str> = dep.integrity.splitn(2, '-').collect();
         let method = s[0];
         let expected = xx::base64::decode_hex(s[1]).unwrap();
         let get_sha = |hasher: fn(&str) -> Result<String, io::Error>| -> Option<String> {
