@@ -486,7 +486,7 @@ dependencies = [
  "serde_json 1.0.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha-1 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tar 0.4.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "xx 0.1.2-alpha.0",
+ "xx 0.1.5-alpha.0",
 ]
 
 [[package]]
@@ -1162,10 +1162,11 @@ dependencies = [
 
 [[package]]
 name = "xx"
-version = "0.1.2-alpha.0"
+version = "0.1.5-alpha.0"
 dependencies = [
  "base64 0.9.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "digest 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha-1 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
