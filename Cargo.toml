@@ -12,3 +12,4 @@ serde_json = "1.0"
 sha-1 = "0.7"
 tar = "0.4"
 xx = { path = "../xx" }
+flate2 = "1.0.2"
