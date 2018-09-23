@@ -7,7 +7,7 @@ use std::io;
 use std::path::Path;
 // use tar::Archive;
 
-pub fn verify_tarball(path: &Path, integrity: &String) -> Result<bool, io::Error> {
+pub fn verify_tarball(path: &Path, integrity: &String, must: bool) -> Result<bool, io::Error> {
     let s: Vec<&str> = integrity.splitn(2, '-').collect();
     let method = s[0];
     let expected = xx::base64::decode_hex(s[1]).unwrap();
@@ -17,12 +17,16 @@ pub fn verify_tarball(path: &Path, integrity: &String) -> Result<bool, io::Error
         "sha512" => hash::file_sha512(path),
         _ => panic!("Unexpected method {}", method),
     }?;
+    let m = actual == expected;
+    if ! m && must {
+        panic!("hash mismatch path: {:?}\nexpected: {}\nactual: {}", path, expected, actual);
+    }
 
-    Ok(actual == expected)
+    Ok(m)
 }
 
 pub fn extract_tarballs(lock: &PackageLock) {
-    for (name, dep) in &lock.dependencies {
-        verify_tarball(&dep.cache_path(), &dep.integrity).unwrap();
+    for (_, dep) in &lock.dependencies {
+        verify_tarball(&dep.cache_path(), &dep.integrity, true).unwrap();
     }
 }
