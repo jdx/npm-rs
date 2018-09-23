@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "@oclif/errors": "^1.2.1"
+    "@oclif/command": "^1.5.1",
+    "@oclif/errors": "^1.2.1",
+    "tslib": "^1.9.0"
   }
 }
