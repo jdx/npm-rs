@@ -80,36 +80,35 @@ impl PackageLock {
 
 fn install<P: AsRef<Path>>(root: P, dependencies: &HashMap<String, PackageLockDependency>) {
     let root = root.as_ref();
-    dependencies
-        .par_iter()
-        .for_each(|dep| {
-            let dep = dep.1;
-            let name = dep.name.as_ref().unwrap();
-            match dep.dependencies {
-                Some(ref deps) => {
-                    let mut p = root.join("node_modules");
-                    p.push(name);
-                    install(p, deps);
-                }
-                None => (),
+    // dependencies.iter().for_each(|dep| {
+    dependencies.par_iter().for_each(|dep| {
+        let dep = dep.1;
+        let name = dep.name.as_ref().unwrap();
+        match dep.dependencies {
+            Some(ref deps) => {
+                let mut p = root.join("node_modules");
+                p.push(name);
+                install(p.clone(), deps);
             }
-            let file = dep.cache_path();
-            match verify(&file, &dep.integrity, false) {
-                Ok(verified) => {
-                    if !verified {
-                        println!("hash fail: {:?}", file);
-                        xx::http::download(&dep.resolved, &file).unwrap();
-                    }
-                }
-                Err(_err) => {
-                    println!("file not found: {:?}", file);
+            None => (),
+        }
+        let file = dep.cache_path();
+        match verify(&file, &dep.integrity, false) {
+            Ok(verified) => {
+                if !verified {
+                    println!("hash fail: {:?}", file);
                     xx::http::download(&dep.resolved, &file).unwrap();
                 }
             }
-            verify(&file, &dep.integrity, true).unwrap();
-            let extract_path = root.join("node_modules").join(dep.name.clone().unwrap());
-            extract(&file, extract_path);
-        })
+            Err(_err) => {
+                println!("file not found: {:?}", file);
+                xx::http::download(&dep.resolved, &file).unwrap();
+            }
+        }
+        verify(&file, &dep.integrity, true).unwrap();
+        let extract_path = root.join("node_modules").join(dep.name.clone().unwrap());
+        extract(&file, extract_path);
+    })
 }
 
 fn verify(path: &Path, integrity: &String, must: bool) -> Result<bool, io::Error> {
@@ -137,8 +136,11 @@ fn extract<A: AsRef<Path>, B: AsRef<Path>>(tarball: A, to: B) {
     let tarball = tarball.as_ref();
     let to = to.as_ref();
     fn get_real_path(parent: &Path, child: &Path) -> PathBuf {
-        let orig_path = child;
-        let path = parent.join(orig_path.strip_prefix("package").unwrap());
+        let child = match child.starts_with("package") {
+            true => child.strip_prefix("package").unwrap(),
+            false => child,
+        };
+        let path = parent.join(child);
         if !path.starts_with(parent) {
             panic!("invalid tarball");
         }
@@ -150,10 +152,19 @@ fn extract<A: AsRef<Path>, B: AsRef<Path>>(tarball: A, to: B) {
     let mut archive = Archive::new(file);
     for file in archive.entries().unwrap() {
         let mut file = file.unwrap();
-        let path = get_real_path(to, file.path().unwrap().as_ref());
-        println!("{:?}", path);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        let mut output = File::create(&path).unwrap();
-        io::copy(&mut file, &mut output).unwrap();
+        let kind = file.header().entry_type();
+        let path = file.path().unwrap().into_owned();
+        if kind.is_pax_global_extensions() {
+            break;
+        }
+        let path = get_real_path(to, &path);
+        // println!("{:?} {:?}", kind, path);
+        if kind.is_dir() {
+            fs::create_dir_all(path).unwrap();
+        } else if kind.is_file() {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            let mut output = File::create(&path).unwrap();
+            io::copy(&mut file, &mut output).unwrap();
+        }
     }
 }
